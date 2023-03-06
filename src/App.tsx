@@ -26,4 +26,4 @@ function App({ signOut }: { signOut: MouseEventHandler<HTMLButtonElement> }) {
   );
 }
 
-export default withAuthenticator(App);
+export default withAuthenticator(App) as () => JSX.Element;
