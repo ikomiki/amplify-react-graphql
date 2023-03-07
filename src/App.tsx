@@ -1,8 +1,8 @@
 import { Button, withAuthenticator } from "@aws-amplify/ui-react";
 import "@aws-amplify/ui-react/styles.css";
 
-import { Amplify, API } from "aws-amplify";
-import { MouseEventHandler, useEffect, useState } from "react";
+import { Amplify, API, Storage } from "aws-amplify";
+import { FormEvent, MouseEventHandler, useEffect, useState } from "react";
 import { Note } from "./API";
 import config from "./aws-exports";
 import {
@@ -16,6 +16,7 @@ Amplify.configure(config);
 type FormState = {
   name: string;
   description: string;
+  image?: string;
 };
 const initialFormState: FormState = { name: "", description: "" };
 
@@ -38,7 +39,17 @@ function App({ signOut }: { signOut: MouseEventHandler<HTMLButtonElement> }) {
     const apiData = (await API.graphql<ListNotesResponse>({
       query: listNotes,
     })) as ListNotesResponse;
-    console.log("apiData", apiData);
+    // console.log("apiData", apiData);
+    const notesFromAPI = apiData.data.listNotes.items;
+    await Promise.all(
+      notesFromAPI.map(async (note) => {
+        if (note.image) {
+          const image = await Storage.get(note.image);
+          note.image = image as string;
+        }
+        return note;
+      })
+    );
     setNotes(apiData.data.listNotes.items);
   }
 
@@ -48,8 +59,13 @@ function App({ signOut }: { signOut: MouseEventHandler<HTMLButtonElement> }) {
       query: createNoteMutation,
       variables: { input: formData },
     })) as CreateNotesResponse;
-    console.log("apiData", apiData);
-    setNotes([...notes, apiData.data.createNote]);
+    const newNote = apiData.data.createNote;
+    if (formData.image) {
+      const image = await Storage.get(formData.image);
+      newNote.image = image as string;
+    }
+    // console.log("apiData", apiData);
+    setNotes([...notes, newNote]);
     setFormData(initialFormState);
   }
 
@@ -60,6 +76,15 @@ function App({ signOut }: { signOut: MouseEventHandler<HTMLButtonElement> }) {
       query: deleteNoteMutation,
       variables: { input: { id } },
     });
+  }
+
+  async function onChange(e: FormEvent<HTMLInputElement>) {
+    const target = e.target as HTMLInputElement;
+    if (!target.files?.[0]) return;
+    const file = target.files[0];
+    setFormData({ ...formData, image: file.name });
+    await Storage.put(file.name, file);
+    fetchNotes();
   }
 
   return (
@@ -77,6 +102,7 @@ function App({ signOut }: { signOut: MouseEventHandler<HTMLButtonElement> }) {
         placeholder="Note description"
         value={formData.description}
       />
+      <input type="file" onChange={onChange} />
       <button onClick={createNote}>Create Note</button>
       <div style={{ marginBottom: 30 }}>
         {notes.map((note) => (
@@ -84,6 +110,7 @@ function App({ signOut }: { signOut: MouseEventHandler<HTMLButtonElement> }) {
             <h2>{note.name}</h2>
             <p>{note.description}</p>
             <button onClick={() => deleteNote(note.id)}>Delete note</button>
+            {note.image && <img src={note.image} style={{ width: 400 }} />}
           </div>
         ))}
       </div>
