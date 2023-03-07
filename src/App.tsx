@@ -1,13 +1,5 @@
-import {
-  Button,
-  Card,
-  Heading,
-  Image,
-  View,
-  withAuthenticator,
-} from "@aws-amplify/ui-react";
+import { Button, withAuthenticator } from "@aws-amplify/ui-react";
 import "@aws-amplify/ui-react/styles.css";
-import logo from "./assets/react.svg";
 
 import { Amplify, API } from "aws-amplify";
 import { MouseEventHandler, useEffect, useState } from "react";
